@@ -7,4 +7,5 @@ public enum TransactionType {
     PAYMENT,
     REFUND,
     CONVERSION,
+    INITIAL;
 }

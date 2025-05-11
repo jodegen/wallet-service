@@ -1,14 +1,15 @@
 package de.jodegen.wallet.service;
 
+import de.jodegen.wallet.factory.WalletFactory;
 import de.jodegen.wallet.model.*;
 import de.jodegen.wallet.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -16,7 +17,32 @@ public class WalletService {
 
     private final WalletRepository walletRepository;
     private final ExchangeGrpcClient exchangeGrpcClient;
-    private final TransactionRepository transactionRepository;
+    private final WalletFactory walletFactory;
+    private final TransactionService transactionService;
+
+    public Wallet createWallet(@NonNull Long userId) {
+        if (walletRepository.findByUserId(userId).isPresent()) {
+            throw new IllegalArgumentException("Wallet already exists for user: " + userId);
+        }
+        Wallet wallet = walletFactory.createWallet(userId);
+        Wallet persistedWallet = walletRepository.save(wallet);
+        transactionService.createInitialTransaction(persistedWallet);
+        return persistedWallet;
+    }
+
+    public Wallet findWalletByUserId(@NonNull Long userId) {
+        return walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user: " + userId));
+    }
+
+    public List<String> listAllBalances(@NonNull Long userId) {
+        Wallet wallet = findWalletByUserId(userId);
+        return wallet.getBalances()
+                .stream()
+                .map(CurrencyBalance::getCurrencyCode)
+                .sorted()
+                .toList();
+    }
 
     @Transactional
     public void convertCurrency(Long userId, String fromCurrency, String toCurrency, BigDecimal amount) {
@@ -41,11 +67,6 @@ public class WalletService {
         toBalance.increaseAmount(convertedAmount);
 
         walletRepository.save(wallet);
-
-        Transaction transaction = new Transaction(wallet, fromCurrency, amount, TransactionType.CONVERSION);
-        transaction.setTargetWalletId(wallet.getId());
-        transaction.setTargetCurrencyCode(toCurrency);
-        transaction.setTargetAmount(convertedAmount);
-        transactionRepository.save(transaction);
+        transactionService.createConversionTransaction(wallet, fromCurrency, toCurrency, amount, convertedAmount);
     }
 }
