@@ -1,4 +1,0 @@
-package de.jodegen.wallet.dto;
-
-public class CreateWalletRequest {
-}

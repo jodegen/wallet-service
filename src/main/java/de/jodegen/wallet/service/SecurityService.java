@@ -10,6 +10,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class SecurityService {
 
+    public JwtUserDetails assertLoggedInUserAccount() {
+        JwtUserDetails loggedInUserAccount = getLoggedInUserAccount();
+        if (loggedInUserAccount == null) {
+            throw new IllegalStateException("No UserAccount found in SecurityContext.");
+        }
+        return loggedInUserAccount;
+    }
+
     @Nullable
     private JwtUserDetails getLoggedInUserAccount() {
         var securityContext =

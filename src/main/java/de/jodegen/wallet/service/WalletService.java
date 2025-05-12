@@ -1,6 +1,8 @@
 package de.jodegen.wallet.service;
 
+import de.jodegen.wallet.dto.*;
 import de.jodegen.wallet.factory.WalletFactory;
+import de.jodegen.wallet.mapper.WalletMapper;
 import de.jodegen.wallet.model.*;
 import de.jodegen.wallet.repository.*;
 import jakarta.persistence.EntityNotFoundException;
@@ -19,24 +21,27 @@ public class WalletService {
     private final ExchangeGrpcClient exchangeGrpcClient;
     private final WalletFactory walletFactory;
     private final TransactionService transactionService;
+    private final WalletMapper walletMapper;
 
-    public Wallet createWallet(@NonNull Long userId) {
+    public WalletDto createWallet(@NonNull Long userId) {
         if (walletRepository.findByUserId(userId).isPresent()) {
             throw new IllegalArgumentException("Wallet already exists for user: " + userId);
         }
         Wallet wallet = walletFactory.createWallet(userId);
         Wallet persistedWallet = walletRepository.save(wallet);
         transactionService.createInitialTransaction(persistedWallet);
-        return persistedWallet;
+        return walletMapper.toDto(persistedWallet);
     }
 
-    public Wallet findWalletByUserId(@NonNull Long userId) {
+    public WalletDto findWalletByUserId(@NonNull Long userId) {
         return walletRepository.findByUserId(userId)
+                .map(walletMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user: " + userId));
     }
 
     public List<String> listAllBalances(@NonNull Long userId) {
-        Wallet wallet = findWalletByUserId(userId);
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user: " + userId));
         return wallet.getBalances()
                 .stream()
                 .map(CurrencyBalance::getCurrencyCode)
@@ -45,16 +50,19 @@ public class WalletService {
     }
 
     @Transactional
-    public void convertCurrency(Long userId, String fromCurrency, String toCurrency, BigDecimal amount) {
+    public void convertCurrency(@NonNull Long userId, @NonNull ConversionRequestDto conversionRequestDto) {
         Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Wallet not found"));
 
+        String fromCurrency = conversionRequestDto.getFromCurrency();
         CurrencyBalance fromBalance = wallet.getBalance(fromCurrency)
                 .orElseThrow(() -> new IllegalArgumentException("No balance in currency: " + fromCurrency));
 
+        String toCurrency = conversionRequestDto.getToCurrency();
         CurrencyBalance toBalance = wallet.getBalance(toCurrency)
                 .orElseThrow(() -> new IllegalArgumentException("No balance in currency: " + toCurrency));
 
+        BigDecimal amount = conversionRequestDto.getAmount();
         if (fromBalance.getAmount().compareTo(amount) < 0) {
             throw new IllegalArgumentException("Insufficient funds in " + fromCurrency);
         }

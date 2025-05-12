@@ -22,10 +22,6 @@ public class Wallet {
     @OneToMany(mappedBy = "wallet", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CurrencyBalance> balances = new ArrayList<>();
 
-    public Wallet(@NonNull Long userId) {
-        this.userId = userId;
-    }
-
     public Optional<CurrencyBalance> getBalance(String currencyCode) {
         return balances.stream()
                 .filter(balance -> balance.getCurrencyCode().equals(currencyCode))
