@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(path = "/v1/wallet")
+@RequestMapping(path = "/api/v1/wallet")
 public class WalletController {
 
     private final WalletService walletService;

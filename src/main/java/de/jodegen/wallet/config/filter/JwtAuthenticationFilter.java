@@ -1,4 +1,4 @@
-package de.jodegen.wallet.config;
+package de.jodegen.wallet.config.filter;
 
 import de.jodegen.wallet.model.JwtUserDetails;
 import de.jodegen.wallet.service.JwtService;
