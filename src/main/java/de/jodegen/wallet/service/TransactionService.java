@@ -28,4 +28,25 @@ public class TransactionService {
         transaction.setTargetAmount(convertedAmount);
         transactionRepository.save(transaction);
     }
+
+    public void createPurchaseTransaction(@NonNull Wallet wallet, @NonNull String currencyCode,
+                                            @NonNull BigDecimal amount, long auctionId) {
+        Transaction transaction = new Transaction(wallet, currencyCode, amount, TransactionType.PAYMENT);
+        transaction.setReferenceId(String.valueOf(auctionId));
+        transactionRepository.save(transaction);
+    }
+
+    public void createBidPlacedTransaction(@NonNull Wallet wallet, @NonNull String currencyCode,
+                                            @NonNull BigDecimal amount, long auctionId) {
+        Transaction transaction = new Transaction(wallet, currencyCode, amount, TransactionType.BID_PLACED);
+        transaction.setReferenceId(String.valueOf(auctionId));
+        transactionRepository.save(transaction);
+    }
+
+    public void createBidCancelledTransaction(@NonNull Wallet wallet, @NonNull String currencyCode,
+                                            @NonNull BigDecimal amount, long auctionId) {
+        Transaction transaction = new Transaction(wallet, currencyCode, amount.negate(), TransactionType.BID_CANCELLED);
+        transaction.setReferenceId(String.valueOf(auctionId));
+        transactionRepository.save(transaction);
+    }
 }

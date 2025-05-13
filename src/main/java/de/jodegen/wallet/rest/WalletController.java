@@ -18,7 +18,7 @@ public class WalletController {
     @GetMapping
     public WalletDto getWallet() {
         JwtUserDetails jwtUserDetails = securityService.assertLoggedInUserAccount();
-        return walletService.findWalletByUserId(jwtUserDetails.getUserId());
+        return walletService.getWalletByUserId(jwtUserDetails.getUserId());
     }
 
     @PostMapping

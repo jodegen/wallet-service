@@ -92,7 +92,7 @@
         <dependency>
             <groupId>de.jodegen</groupId>
             <artifactId>auction-platform-protos</artifactId>
-            <version>1.1</version>
+            <version>1.5</version>
         </dependency>
 
 

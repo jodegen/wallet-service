@@ -33,9 +33,12 @@ public class WalletService {
         return walletMapper.toDto(persistedWallet);
     }
 
-    public WalletDto findWalletByUserId(@NonNull Long userId) {
+    public WalletDto getWalletByUserId(@NonNull Long userId) {
+        return walletMapper.toDto(findWalletByUserId(userId));
+    }
+
+    public Wallet findWalletByUserId(@NonNull Long userId) {
         return walletRepository.findByUserId(userId)
-                .map(walletMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user: " + userId));
     }
 

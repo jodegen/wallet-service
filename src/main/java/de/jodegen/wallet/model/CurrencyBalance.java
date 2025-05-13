@@ -26,11 +26,8 @@ public class CurrencyBalance {
     @Column(name = "amount", nullable = false, precision = 19, scale = 6)
     private BigDecimal amount;
 
-    public CurrencyBalance(@NonNull Wallet wallet, @NonNull String currencyCode, @NonNull BigDecimal amount) {
-        this.wallet = wallet;
-        this.currencyCode = currencyCode;
-        this.amount = amount;
-    }
+    @Column(name = "reserved_amount", nullable = false, precision = 19, scale = 6)
+    private BigDecimal reservedAmount = BigDecimal.ZERO;
 
     public void decreaseAmount(@NonNull BigDecimal amount) {
         this.amount = this.amount.subtract(amount);
@@ -42,5 +39,25 @@ public class CurrencyBalance {
 
     public boolean isEmpty() {
         return amount.compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    public boolean hasReservedAmount() {
+        return reservedAmount.compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    public void reserveAmount(@NonNull BigDecimal amount) {
+        if (this.amount.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient balance to reserve the amount");
+        }
+        this.amount = this.amount.subtract(amount);
+        this.reservedAmount = this.reservedAmount.add(amount);
+    }
+
+    public void releaseReservedAmount(@NonNull BigDecimal amount) {
+        if (this.reservedAmount.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient reserved amount to release");
+        }
+        this.reservedAmount = this.reservedAmount.subtract(amount);
+        this.amount = this.amount.add(amount);
     }
 }

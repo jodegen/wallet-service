@@ -2,7 +2,6 @@ package de.jodegen.wallet.service;
 
 import de.jodegen.exchange.grpc.*;
 import io.grpc.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -10,21 +9,20 @@ import java.math.BigDecimal;
 @Service
 public class ExchangeGrpcClient {
 
-    private ManagedChannel channel;
-    private ExchangeServiceGrpc.ExchangeServiceBlockingStub stub;
+    private ExchangeServiceGrpc.ExchangeServiceBlockingStub exchangeServiceStub;
 
     public ExchangeGrpcClient(){
-        this.channel = ManagedChannelBuilder.forAddress("127.0.0.1", 9090)
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", 9090)
                 .usePlaintext() // TODO: use TLS
                 .build();
-        this.stub = ExchangeServiceGrpc.newBlockingStub(channel);
+        this.exchangeServiceStub = ExchangeServiceGrpc.newBlockingStub(channel);
     }
 
     public BigDecimal getExchangeRate(String currencyCode) {
         var request = ExchangeRateRequest.newBuilder()
                 .setCurrencyCode(currencyCode)
                 .build();
-        var response = stub.getRate(request);
+        var response = exchangeServiceStub.getRate(request);
         return BigDecimal.valueOf(response.getRate());
     }
 
@@ -34,7 +32,7 @@ public class ExchangeGrpcClient {
                 .setToCurrency(toCurrency)
                 .setAmount(amount.doubleValue())
                 .build();
-        var response = stub.convert(request);
+        var response = exchangeServiceStub.convert(request);
         return BigDecimal.valueOf(response.getConvertedAmount());
     }
 }
