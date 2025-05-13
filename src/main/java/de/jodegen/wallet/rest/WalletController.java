@@ -1,11 +1,14 @@
 package de.jodegen.wallet.rest;
 
 import de.jodegen.wallet.dto.*;
-import de.jodegen.wallet.model.JwtUserDetails;
+import de.jodegen.wallet.factory.TransactionFactory;
+import de.jodegen.wallet.model.*;
 import de.jodegen.wallet.service.*;
 import lombok.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -14,6 +17,8 @@ public class WalletController {
 
     private final WalletService walletService;
     private final SecurityService securityService;
+    private final TransactionService transactionService;
+    private final TransactionFactory transactionFactory;
 
     @GetMapping
     public WalletDto getWallet() {
@@ -36,5 +41,12 @@ public class WalletController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(false);
         }
+    }
+
+    @GetMapping("/transactions")
+    public List<TransactionHistoryDto> getWalletHistory() {
+        JwtUserDetails jwtUserDetails = securityService.assertLoggedInUserAccount();
+        Wallet wallet = walletService.findWalletByUserId(jwtUserDetails.getUserId());
+        return transactionService.getTransactionHistory(wallet);
     }
 }

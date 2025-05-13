@@ -1,6 +1,7 @@
 package de.jodegen.wallet.service.grpc;
 
 import de.jodegen.wallet.grpc.*;
+import de.jodegen.wallet.repository.CurrencyBalanceRepository;
 import de.jodegen.wallet.service.*;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
@@ -13,21 +14,20 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
 
     private final TransactionService transactionService;
     private final GrpcWalletHelper helper;
+    private final CurrencyBalanceRepository currencyBalanceRepository;
 
     @Override
-    public void auctionBid(AuctionBidRequest request, StreamObserver<AuctionBidResponse> responseObserver) {
+    public void reserveFundsForBid(ReserveFundsForBidRequest request, StreamObserver<ReserveFundsForBidResponse> responseObserver) {
         try {
             var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
             helper.ensureSufficientBalance(balance, request.getBidAmount());
             balance.reserveAmount(helper.toBigDecimal(request.getBidAmount()));
+            currencyBalanceRepository.save(balance);
 
             transactionService.createBidPlacedTransaction(balance.getWallet(),
                     request.getCurrencyCode(), helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
 
-            var response = AuctionBidResponse.newBuilder()
-                    .setUserId(request.getUserId())
-                    .setCurrencyCode(balance.getCurrencyCode())
-                    .setBidAmount(request.getBidAmount())
+            var response = ReserveFundsForBidResponse.newBuilder()
                     .setSuccess(true)
                     .build();
 
@@ -48,17 +48,16 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
     }
 
     @Override
-    public void auctionBidCancel(AuctionBidCancelRequest request, StreamObserver<AuctionBidCancelResponse> responseObserver) {
+    public void releaseReservedFunds(ReleaseReservedFundsRequest request, StreamObserver<ReleaseReservedFundsResponse> responseObserver) {
         try {
             var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
             balance.releaseReservedAmount(helper.toBigDecimal(request.getBidAmount()));
+            currencyBalanceRepository.save(balance);
+
             transactionService.createBidCancelledTransaction(balance.getWallet(),
                     request.getCurrencyCode(), helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
 
-            var response = AuctionBidCancelResponse.newBuilder()
-                    .setUserId(request.getUserId())
-                    .setCurrencyCode(balance.getCurrencyCode())
-                    .setBidAmount(request.getBidAmount())
+            var response = ReleaseReservedFundsResponse.newBuilder()
                     .setSuccess(true)
                     .build();
 
@@ -79,31 +78,85 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
     }
 
     @Override
-    public void auctionPurchase(AuctionPurchaseRequest request, StreamObserver<AuctionPurchaseResponse> responseObserver) {
+    public void processBuyNowPayment(ProcessBuyNowPaymentRequest request, StreamObserver<ProcessBuyNowPaymentResponse> responseObserver) {
         try {
             var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
             helper.ensureSufficientBalance(balance, request.getPurchasePrice());
-
             balance.decreaseAmount(helper.toBigDecimal(request.getPurchasePrice()));
+            currencyBalanceRepository.save(balance);
+
             transactionService.createPurchaseTransaction(balance.getWallet(), request.getCurrencyCode(),
                     helper.toBigDecimal(request.getPurchasePrice()), request.getAuctionId());
 
-            var response = AuctionPurchaseResponse.newBuilder()
-                    .setUserId(request.getUserId())
-                    .setAuctionId(request.getAuctionId())
-                    .setPurchasePrice(request.getPurchasePrice())
-                    .setCurrencyCode(balance.getCurrencyCode())
+            var response = ProcessBuyNowPaymentResponse.newBuilder()
                     .setSuccess(true)
                     .build();
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-
         } catch (StatusRuntimeException e) {
             responseObserver.onError(e);
         } catch (IllegalArgumentException e) {
             responseObserver.onError(Status.FAILED_PRECONDITION
                     .withDescription("Failed to commit purchase: " + e.getMessage())
+                    .asRuntimeException());
+        } catch (Exception e) {
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Unexpected error")
+                    .withCause(e)
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getCurrencyBalance(GetBalanceRequest request, StreamObserver<GetBalanceResponse> responseObserver) {
+        try {
+            var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
+            var response = GetBalanceResponse.newBuilder()
+                    .setUserId(request.getUserId())
+                    .setCurrencyCode(request.getCurrencyCode())
+                    .setBalance(balance.getAmount().doubleValue())
+                    .setReservedBalance(balance.getReservedAmount().doubleValue())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (StatusRuntimeException e) {
+            responseObserver.onError(e);
+        } catch (IllegalArgumentException e) {
+            responseObserver.onError(Status.FAILED_PRECONDITION
+                    .withDescription("Failed to get balance: " + e.getMessage())
+                    .asRuntimeException());
+        } catch (Exception e) {
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Unexpected error")
+                    .withCause(e)
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void payoutOnAuctionSold(PayoutOnAuctionSoldRequest request, StreamObserver<PayoutOnAuctionSoldResponse> responseObserver) {
+        try {
+            var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
+            balance.increaseAmount(helper.toBigDecimal(request.getAmount()));
+            currencyBalanceRepository.save(balance);
+
+            boolean buyNow = request.getSaleType() == PayoutOnAuctionSoldRequest.SaleType.BUY_NOW;
+            transactionService.createPayoutTransaction(balance.getWallet(), request.getCurrencyCode(),
+                    helper.toBigDecimal(request.getAmount()), request.getAuctionId(), buyNow);
+
+            var response = PayoutOnAuctionSoldResponse.newBuilder()
+                    .setSuccess(true)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (StatusRuntimeException e) {
+            responseObserver.onError(e);
+        } catch (IllegalArgumentException e) {
+            responseObserver.onError(Status.FAILED_PRECONDITION
+                    .withDescription("Failed to process payout: " + e.getMessage())
                     .asRuntimeException());
         } catch (Exception e) {
             responseObserver.onError(Status.INTERNAL

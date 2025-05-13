@@ -27,8 +27,12 @@ public class Transaction {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false)
+    @Column(nullable = false)
     private TransactionType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason")
+    private TransactionReason reason;
 
     @Column(name = "target_wallet_id")
     private Long targetWalletId;
@@ -40,7 +44,7 @@ public class Transaction {
     private BigDecimal targetAmount;
 
     @Column(name = "reference_id")
-    private String referenceId;
+    private Long referenceId;
 
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
@@ -48,10 +52,12 @@ public class Transaction {
     public Transaction(@NonNull Wallet wallet,
                        @NonNull String currencyCode,
                        @NonNull BigDecimal amount,
-                       @NonNull TransactionType type) {
+                       @NonNull TransactionType type,
+                       @NonNull TransactionReason reason) {
         this.walletId = wallet.getId();
         this.currencyCode = currencyCode;
         this.amount = amount;
         this.type = type;
+        this.reason = reason;
     }
 }
