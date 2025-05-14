@@ -26,38 +26,41 @@ public class TransactionService {
                 .toList();
     }
 
-    public void createInitialTransaction(@NonNull Wallet wallet) {
-        Transaction tx = transactionFactory.createInitial(wallet);
+    public void createInitialTransaction(@NonNull CurrencyBalance currencyBalance) {
+        Transaction tx = transactionFactory.createInitial(currencyBalance);
         transactionRepository.save(tx);
     }
 
-    public void createConversionTransaction(@NonNull Wallet wallet, @NonNull String fromCurrency,
-                                            @NonNull String toCurrency, @NonNull BigDecimal amount,
-                                            @NonNull BigDecimal convertedAmount) {
-        Transaction tx = transactionFactory.createConversion(wallet, fromCurrency, toCurrency, amount, convertedAmount);
+    public void createConversionTransaction(@NonNull CurrencyBalance fromBalance, @NonNull CurrencyBalance toBalance,
+                                            @NonNull BigDecimal amount, @NonNull BigDecimal convertedAmount) {
+        if (fromBalance.getCurrencyCode().equals(toBalance.getCurrencyCode())) {
+            throw new IllegalArgumentException("Cannot convert the same currency");
+        }
+
+        Transaction tx = transactionFactory.createOutgoingConversion(fromBalance, toBalance, amount, convertedAmount);
+        transactionRepository.save(tx);
+
+        Transaction tx2 = transactionFactory.createIncomingConversion(toBalance, fromBalance, convertedAmount, amount);
+        transactionRepository.save(tx2);
+    }
+
+    public void createPurchaseTransaction(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount, long auctionId) {
+        Transaction tx = transactionFactory.createBuyNowPurchase(currencyBalance, amount, auctionId);
         transactionRepository.save(tx);
     }
 
-    public void createPurchaseTransaction(@NonNull Wallet wallet, @NonNull String currencyCode,
-                                          @NonNull BigDecimal amount, long auctionId) {
-        Transaction tx = transactionFactory.createBuyNowPurchase(wallet, currencyCode, amount, auctionId);
+    public void createBidPlacedTransaction(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount, long auctionId) {
+        Transaction tx = transactionFactory.createBidPlaced(currencyBalance, amount, auctionId);
         transactionRepository.save(tx);
     }
 
-    public void createBidPlacedTransaction(@NonNull Wallet wallet, @NonNull String currencyCode,
-                                           @NonNull BigDecimal amount, long auctionId) {
-        Transaction tx = transactionFactory.createBidPlaced(wallet, currencyCode, amount, auctionId);
+    public void createBidCancelledTransaction(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount, long auctionId) {
+        Transaction tx = transactionFactory.createBidCancelled(currencyBalance, amount, auctionId);
         transactionRepository.save(tx);
     }
 
-    public void createBidCancelledTransaction(@NonNull Wallet wallet, @NonNull String currencyCode,
-                                              @NonNull BigDecimal amount, long auctionId) {
-        Transaction tx = transactionFactory.createBidCancelled(wallet, currencyCode, amount, auctionId);
-        transactionRepository.save(tx);
-    }
-
-    public void createPayoutTransaction(@NonNull Wallet wallet, @NonNull String currencyCode, @NonNull BigDecimal amount, long auctionId, boolean buyNow) {
-        Transaction tx = transactionFactory.createAuctionPayout(wallet, currencyCode, amount, auctionId, buyNow);
+    public void createPayoutTransaction(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount, long auctionId, boolean buyNow) {
+        Transaction tx = transactionFactory.createAuctionPayout(currencyBalance, amount, auctionId, buyNow);
         transactionRepository.save(tx);
     }
 }

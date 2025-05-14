@@ -29,7 +29,13 @@ public class WalletService {
         }
         Wallet wallet = walletFactory.createWallet(userId);
         Wallet persistedWallet = walletRepository.save(wallet);
-        transactionService.createInitialTransaction(persistedWallet);
+        Optional<CurrencyBalance> defaultCurrencyBalance = persistedWallet.getBalance(WalletFactory.DEFAULT_CURRENCY);
+
+        if (defaultCurrencyBalance.isEmpty()) {
+            throw new IllegalStateException("Default currency balance not found after wallet creation");
+        }
+
+        transactionService.createInitialTransaction(defaultCurrencyBalance.get());
         return walletMapper.toDto(persistedWallet);
     }
 
@@ -78,6 +84,6 @@ public class WalletService {
         toBalance.increaseAmount(convertedAmount);
 
         walletRepository.save(wallet);
-        transactionService.createConversionTransaction(wallet, fromCurrency, toCurrency, amount, convertedAmount);
+        transactionService.createConversionTransaction(fromBalance, toBalance, amount, convertedAmount);
     }
 }

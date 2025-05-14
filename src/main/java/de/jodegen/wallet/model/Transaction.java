@@ -17,11 +17,9 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
 
-    @Column(name = "wallet_id", nullable = false)
-    private Long walletId;
-
-    @Column(name = "currency_code", nullable = false)
-    private String currencyCode;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "currency_balance_id", nullable = false)
+    private CurrencyBalance currencyBalance;
 
     @Column(name = "amount", nullable = false, precision = 19, scale = 6)
     private BigDecimal amount;
@@ -37,8 +35,9 @@ public class Transaction {
     @Column(name = "target_wallet_id")
     private Long targetWalletId;
 
-    @Column(name = "target_currency")
-    private String targetCurrencyCode;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_currency_balance_id")
+    private CurrencyBalance targetCurrencyBalance;
 
     @Column(name = "target_amount", precision = 19, scale = 6)
     private BigDecimal targetAmount;
@@ -49,13 +48,11 @@ public class Transaction {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
 
-    public Transaction(@NonNull Wallet wallet,
-                       @NonNull String currencyCode,
+    public Transaction(@NonNull CurrencyBalance currencyBalance,
                        @NonNull BigDecimal amount,
                        @NonNull TransactionType type,
                        @NonNull TransactionReason reason) {
-        this.walletId = wallet.getId();
-        this.currencyCode = currencyCode;
+        this.currencyBalance = currencyBalance;
         this.amount = amount;
         this.type = type;
         this.reason = reason;

@@ -24,8 +24,7 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
             balance.reserveAmount(helper.toBigDecimal(request.getBidAmount()));
             currencyBalanceRepository.save(balance);
 
-            transactionService.createBidPlacedTransaction(balance.getWallet(),
-                    request.getCurrencyCode(), helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
+            transactionService.createBidPlacedTransaction(balance, helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
 
             var response = ReserveFundsForBidResponse.newBuilder()
                     .setSuccess(true)
@@ -54,8 +53,7 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
             balance.releaseReservedAmount(helper.toBigDecimal(request.getBidAmount()));
             currencyBalanceRepository.save(balance);
 
-            transactionService.createBidCancelledTransaction(balance.getWallet(),
-                    request.getCurrencyCode(), helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
+            transactionService.createBidCancelledTransaction(balance, helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
 
             var response = ReleaseReservedFundsResponse.newBuilder()
                     .setSuccess(true)
@@ -85,8 +83,7 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
             balance.decreaseAmount(helper.toBigDecimal(request.getPurchasePrice()));
             currencyBalanceRepository.save(balance);
 
-            transactionService.createPurchaseTransaction(balance.getWallet(), request.getCurrencyCode(),
-                    helper.toBigDecimal(request.getPurchasePrice()), request.getAuctionId());
+            transactionService.createPurchaseTransaction(balance, helper.toBigDecimal(request.getPurchasePrice()), request.getAuctionId());
 
             var response = ProcessBuyNowPaymentResponse.newBuilder()
                     .setSuccess(true)
@@ -143,8 +140,7 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
             currencyBalanceRepository.save(balance);
 
             boolean buyNow = request.getSaleType() == PayoutOnAuctionSoldRequest.SaleType.BUY_NOW;
-            transactionService.createPayoutTransaction(balance.getWallet(), request.getCurrencyCode(),
-                    helper.toBigDecimal(request.getAmount()), request.getAuctionId(), buyNow);
+            transactionService.createPayoutTransaction(balance, helper.toBigDecimal(request.getAmount()), request.getAuctionId(), buyNow);
 
             var response = PayoutOnAuctionSoldResponse.newBuilder()
                     .setSuccess(true)
