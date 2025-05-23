@@ -4,12 +4,12 @@ import de.jodegen.wallet.dto.TransactionHistoryDto;
 import de.jodegen.wallet.factory.*;
 import de.jodegen.wallet.mapper.TransactionHistoryMapper;
 import de.jodegen.wallet.model.*;
-import de.jodegen.wallet.repository.TransactionRepository;
+import de.jodegen.wallet.repository.*;
 import lombok.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -18,9 +18,28 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionFactory transactionFactory;
     private final TransactionHistoryMapper transactionHistoryMapper;
+    private final WalletRepository walletRepository;
 
-    public List<TransactionHistoryDto> getTransactionHistory(@NonNull Wallet wallet) {
-        return transactionRepository.findAllByWalletId(wallet.getId())
+    public List<TransactionHistoryDto> getTransactionHistory(@NonNull Long userId, @NonNull String currencyCode) {
+        try {
+            Currency.getInstance(currencyCode);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid currency code: " + currencyCode, e);
+        }
+
+        Optional<Wallet> optionalWallet = walletRepository.findByUserId(userId);
+        if (optionalWallet.isEmpty()) {
+            throw new IllegalArgumentException("No wallet found for user ID: " + userId);
+        }
+
+        Wallet wallet = optionalWallet.get();
+        CurrencyBalance balance = wallet.getBalances()
+                .stream()
+                .filter(cb -> cb.getCurrencyCode().equals(currencyCode))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No currency balance found for currency code: " + currencyCode));
+
+        return transactionRepository.findByCurrencyBalance(balance)
                 .stream()
                 .map(transactionHistoryMapper::toDto)
                 .toList();

@@ -43,10 +43,9 @@ public class WalletController {
         }
     }
 
-    @GetMapping("/transactions")
-    public List<TransactionHistoryDto> getWalletHistory() {
+    @GetMapping("/transactions/{currencyCode}")
+    public List<TransactionHistoryDto> getBalanceHistory(@PathVariable String currencyCode) {
         JwtUserDetails jwtUserDetails = securityService.assertLoggedInUserAccount();
-        Wallet wallet = walletService.findWalletByUserId(jwtUserDetails.getUserId());
-        return transactionService.getTransactionHistory(wallet);
+        return transactionService.getTransactionHistory(jwtUserDetails.getUserId(), currencyCode);
     }
 }
