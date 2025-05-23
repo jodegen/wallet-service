@@ -22,6 +22,7 @@ public class WalletService {
     private final WalletFactory walletFactory;
     private final TransactionService transactionService;
     private final WalletMapper walletMapper;
+    private final CurrencyBalanceRepository currencyBalanceRepository;
 
     public WalletDto createWallet(@NonNull Long userId) {
         if (walletRepository.findByUserId(userId).isPresent()) {
@@ -85,5 +86,39 @@ public class WalletService {
 
         walletRepository.save(wallet);
         transactionService.createConversionTransaction(fromBalance, toBalance, amount, convertedAmount);
+    }
+
+    public void reserveAmount(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount,
+                              @NonNull Long auctionId, @NonNull ReserveReason reason) {
+        if (currencyBalance.getAmount().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient funds in " + currencyBalance.getCurrencyCode());
+        }
+
+        if (currencyBalance.getReservedBalances().stream().anyMatch(reserved -> reserved.getAuctionId().equals(auctionId))) {
+            throw new IllegalArgumentException("Amount already reserved for auction: " + auctionId);
+        }
+
+        currencyBalance.decreaseAmount(amount);
+        ReservedBalance reservedBalance = new ReservedBalance();
+        reservedBalance.setReferenceBalance(currencyBalance);
+        reservedBalance.setAuctionId(auctionId);
+        reservedBalance.setAmount(amount);
+        reservedBalance.setReason(reason);
+        currencyBalance.getReservedBalances().add(reservedBalance);
+
+        currencyBalanceRepository.save(currencyBalance);
+    }
+
+    public void releaseReservedAmount(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount,
+                                      @NonNull Long auctionId) {
+        ReservedBalance reservedBalance = currencyBalance.getReservedBalances()                .stream()
+                .filter(reserved -> reserved.getAuctionId().equals(auctionId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No reserved amount found for auction: " + auctionId));
+
+        currencyBalance.increaseAmount(amount);
+        currencyBalance.getReservedBalances().remove(reservedBalance);
+
+        currencyBalanceRepository.save(currencyBalance);
     }
 }

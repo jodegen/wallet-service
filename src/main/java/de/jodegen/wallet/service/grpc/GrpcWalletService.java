@@ -1,12 +1,17 @@
 package de.jodegen.wallet.service.grpc;
 
 import de.jodegen.wallet.grpc.*;
+import de.jodegen.wallet.model.ReserveReason;
+import de.jodegen.wallet.model.ReservedBalance;
 import de.jodegen.wallet.repository.CurrencyBalanceRepository;
 import de.jodegen.wallet.service.*;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.grpc.server.service.GrpcService;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 @GrpcService
 @RequiredArgsConstructor
@@ -15,16 +20,17 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
     private final TransactionService transactionService;
     private final GrpcWalletHelper helper;
     private final CurrencyBalanceRepository currencyBalanceRepository;
+    private final WalletService walletService;
 
     @Override
     public void reserveFundsForBid(ReserveFundsForBidRequest request, StreamObserver<ReserveFundsForBidResponse> responseObserver) {
         try {
             var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
             helper.ensureSufficientBalance(balance, request.getBidAmount());
-            balance.reserveAmount(helper.toBigDecimal(request.getBidAmount()));
-            currencyBalanceRepository.save(balance);
 
-            transactionService.createBidPlacedTransaction(balance, helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
+            BigDecimal bidAmount = helper.toBigDecimal(request.getBidAmount());
+            walletService.reserveAmount(balance, bidAmount, request.getAuctionId(), ReserveReason.AUCTION_BID);
+            transactionService.createBidPlacedTransaction(balance, bidAmount, request.getAuctionId());
 
             var response = ReserveFundsForBidResponse.newBuilder()
                     .setSuccess(true)
@@ -50,10 +56,9 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
     public void releaseReservedFunds(ReleaseReservedFundsRequest request, StreamObserver<ReleaseReservedFundsResponse> responseObserver) {
         try {
             var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
-            balance.releaseReservedAmount(helper.toBigDecimal(request.getBidAmount()));
-            currencyBalanceRepository.save(balance);
-
-            transactionService.createBidCancelledTransaction(balance, helper.toBigDecimal(request.getBidAmount()), request.getAuctionId());
+            BigDecimal bidAmount = helper.toBigDecimal(request.getBidAmount());
+            walletService.releaseReservedAmount(balance, bidAmount, request.getAuctionId());
+            transactionService.createBidCancelledTransaction(balance, bidAmount, request.getAuctionId());
 
             var response = ReleaseReservedFundsResponse.newBuilder()
                     .setSuccess(true)
@@ -109,11 +114,22 @@ public class GrpcWalletService extends WalletServiceGrpc.WalletServiceImplBase {
     public void getCurrencyBalance(GetBalanceRequest request, StreamObserver<GetBalanceResponse> responseObserver) {
         try {
             var balance = helper.getValidBalance(request.getUserId(), request.getCurrencyCode());
+
+            List<ReservedBalance> reservedBalances = balance.getReservedBalances();
+            List<de.jodegen.wallet.grpc.ReservedBalance> grpcReservedBalances = reservedBalances.stream()
+                    .map(reservedBalance -> de.jodegen.wallet.grpc.ReservedBalance.newBuilder()
+                            .setReservedBalanceId(reservedBalance.getId())
+                            .setAuctionId(reservedBalance.getAuctionId())
+                            .setAmount(reservedBalance.getAmount().doubleValue())
+                            .setReason(reservedBalance.getReason().name())
+                            .build())
+                    .toList();
+
             var response = GetBalanceResponse.newBuilder()
                     .setUserId(request.getUserId())
                     .setCurrencyCode(request.getCurrencyCode())
                     .setBalance(balance.getAmount().doubleValue())
-                    .setReservedBalance(balance.getReservedAmount().doubleValue())
+                    .addAllReservedBalances(grpcReservedBalances)
                     .build();
 
             responseObserver.onNext(response);

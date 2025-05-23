@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.*;
 
 @Entity
 @Getter
@@ -26,8 +27,8 @@ public class CurrencyBalance {
     @Column(name = "amount", nullable = false, precision = 19, scale = 6)
     private BigDecimal amount;
 
-    @Column(name = "reserved_amount", nullable = false, precision = 19, scale = 6)
-    private BigDecimal reservedAmount = BigDecimal.ZERO;
+    @OneToMany(mappedBy = "referenceBalance", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReservedBalance> reservedBalances = new ArrayList<>();
 
     public void decreaseAmount(@NonNull BigDecimal amount) {
         this.amount = this.amount.subtract(amount);
@@ -42,22 +43,6 @@ public class CurrencyBalance {
     }
 
     public boolean hasReservedAmount() {
-        return reservedAmount.compareTo(BigDecimal.ZERO) > 0;
-    }
-
-    public void reserveAmount(@NonNull BigDecimal amount) {
-        if (this.amount.compareTo(amount) < 0) {
-            throw new IllegalArgumentException("Insufficient balance to reserve the amount");
-        }
-        this.amount = this.amount.subtract(amount);
-        this.reservedAmount = this.reservedAmount.add(amount);
-    }
-
-    public void releaseReservedAmount(@NonNull BigDecimal amount) {
-        if (this.reservedAmount.compareTo(amount) < 0) {
-            throw new IllegalArgumentException("Insufficient reserved amount to release");
-        }
-        this.reservedAmount = this.reservedAmount.subtract(amount);
-        this.amount = this.amount.add(amount);
+        return !reservedBalances.isEmpty();
     }
 }
