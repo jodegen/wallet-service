@@ -18,7 +18,6 @@ public class WalletController {
     private final WalletService walletService;
     private final SecurityService securityService;
     private final TransactionService transactionService;
-    private final TransactionFactory transactionFactory;
 
     @GetMapping
     public WalletDto getWallet() {
