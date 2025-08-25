@@ -111,7 +111,8 @@ public class WalletService {
 
     public void releaseReservedAmount(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount,
                                       @NonNull Long auctionId) {
-        ReservedBalance reservedBalance = currencyBalance.getReservedBalances()                .stream()
+        ReservedBalance reservedBalance = currencyBalance.getReservedBalances()
+                .stream()
                 .filter(reserved -> reserved.getAuctionId().equals(auctionId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No reserved amount found for auction: " + auctionId));
@@ -120,5 +121,22 @@ public class WalletService {
         currencyBalance.getReservedBalances().remove(reservedBalance);
 
         currencyBalanceRepository.save(currencyBalance);
+    }
+
+    public void addFunds(@NonNull Long userId, @NonNull AddFundsRequestDto addFundsRequestDto) {
+        if (addFundsRequestDto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user: " + userId));
+
+        String currencyCode = addFundsRequestDto.getCurrencyCode();
+        CurrencyBalance balance = wallet.getBalance(currencyCode)
+                .orElseThrow(() -> new IllegalArgumentException("No balance in currency: " + currencyCode));
+
+        balance.increaseAmount(addFundsRequestDto.getAmount());
+        walletRepository.save(wallet);
+        transactionService.createAddFundsTransaction(balance, addFundsRequestDto.getAmount());
     }
 }

@@ -10,6 +10,7 @@ public enum TransactionReason {
     WALLET_TRANSFER,
     WALLET_CREATED,
     ADMIN_ADJUSTMENT,
+    SYSTEM_ADJUSTMENT,
     OTHER;
 
     public String getLabel() {
@@ -23,6 +24,7 @@ public enum TransactionReason {
             case WALLET_TRANSFER -> "Wallet-to-wallet transfer";
             case WALLET_CREATED -> "Wallet created";
             case ADMIN_ADJUSTMENT -> "Admin adjustment";
+            case SYSTEM_ADJUSTMENT -> "System adjustment";
             case OTHER -> "Other";
         };
     }

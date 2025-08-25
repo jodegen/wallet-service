@@ -1,7 +1,6 @@
 package de.jodegen.wallet.rest;
 
 import de.jodegen.wallet.dto.*;
-import de.jodegen.wallet.factory.TransactionFactory;
 import de.jodegen.wallet.model.*;
 import de.jodegen.wallet.service.*;
 import lombok.*;
@@ -46,5 +45,16 @@ public class WalletController {
     public List<TransactionHistoryDto> getBalanceHistory(@PathVariable String currencyCode) {
         JwtUserDetails jwtUserDetails = securityService.assertLoggedInUserAccount();
         return transactionService.getTransactionHistory(jwtUserDetails.getUserId(), currencyCode);
+    }
+
+    @PostMapping(path = "/add-funds")
+    public ResponseEntity<Boolean> addFunds(@RequestBody AddFundsRequestDto addFundsRequestDto) {
+        JwtUserDetails jwtUserDetails = securityService.assertLoggedInUserAccount();
+        try {
+            walletService.addFunds(jwtUserDetails.getUserId(), addFundsRequestDto);
+            return ResponseEntity.ok(true);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(false);
+        }
     }
 }

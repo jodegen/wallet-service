@@ -60,4 +60,8 @@ public class TransactionFactory {
         transaction.setReferenceId(auctionId);
         return transaction;
     }
+
+    public Transaction createAddFunds(@NonNull CurrencyBalance balance, @NonNull BigDecimal amount) {
+        return new Transaction(balance, amount, TransactionType.IN, TransactionReason.SYSTEM_ADJUSTMENT);
+    }
 }

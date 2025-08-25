@@ -42,6 +42,7 @@ public class TransactionService {
         return transactionRepository.findByCurrencyBalance(balance)
                 .stream()
                 .map(transactionHistoryMapper::toDto)
+                .sorted(Comparator.comparing(TransactionHistoryDto::getTimestamp).reversed())
                 .toList();
     }
 
@@ -80,6 +81,11 @@ public class TransactionService {
 
     public void createPayoutTransaction(@NonNull CurrencyBalance currencyBalance, @NonNull BigDecimal amount, long auctionId, boolean buyNow) {
         Transaction tx = transactionFactory.createAuctionPayout(currencyBalance, amount, auctionId, buyNow);
+        transactionRepository.save(tx);
+    }
+
+    public void createAddFundsTransaction(@NonNull CurrencyBalance balance, @NonNull BigDecimal amount) {
+        Transaction tx = transactionFactory.createAddFunds(balance, amount);
         transactionRepository.save(tx);
     }
 }
